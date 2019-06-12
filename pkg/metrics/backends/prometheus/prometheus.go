@@ -22,6 +22,10 @@ import (
 	"github.com/containership/cluster-manager/pkg/log"
 )
 
+// defaultNodeJobName is the default value used to find Prometheus Nodes
+// Specifically this is the value of the job= label that can be used to find all nodes
+const defaultNodeJobName = "node-export-monitor"
+
 // Backend implements a metrics backend for Prometheus. It requires a pod
 // lister so that it can gather info about the prom-exporter pods. Pods
 // accessed via the lister must not be mutated.
@@ -90,7 +94,12 @@ func (b Backend) GetValue(metric string, configuration map[string]string, nodeSe
 		return 0, errors.Wrap(err, "listing nodes")
 	}
 
-	podIPs, err := b.getNodeExporterPodIPsOnNodes(nodes)
+	jobName, ok := configuration["jobName"]
+	if !ok {
+		jobName = defaultNodeJobName
+	}
+
+	podIPs, err := b.getNodeExporterPodIPsOnNodes(nodes, jobName)
 	if err != nil {
 		return 0, errors.Wrapf(err, "getting Prometheus node exporter pod IPs for metric %s", metric)
 	}
@@ -122,7 +131,7 @@ func (b Backend) GetValue(metric string, configuration map[string]string, nodeSe
 	}
 }
 
-func (b Backend) getNodeExporterPodIPsOnNodes(nodes []*corev1.Node) ([]string, error) {
+func (b Backend) getNodeExporterPodIPsOnNodes(nodes []*corev1.Node, jobName string) ([]string, error) {
 	var podIPs []string
 
 	ctx, cancel := context.WithTimeout(context.Background(), prometheusRequestTimeout)
@@ -131,9 +140,9 @@ func (b Backend) getNodeExporterPodIPsOnNodes(nodes []*corev1.Node) ([]string, e
 	// Filter only prom-exporter job, and further filter down by node IPs
 	targets, _ := b.prometheus.Targets(ctx)
 	for _, active := range targets.Active {
-		jobName := string(active.DiscoveredLabels["job"])
-		split := strings.Split(jobName, "/")
-		if split[1] == "node-export-monitor" {
+		job := string(active.DiscoveredLabels["job"])
+		split := strings.Split(job, "/")
+		if job == jobName || (len(split) > 1 && split[1] == jobName) {
 			for _, node := range nodes {
 				if string(active.DiscoveredLabels["__meta_kubernetes_pod_node_name"]) == node.ObjectMeta.Name {
 					podIPs = append(podIPs, string(active.DiscoveredLabels["__meta_kubernetes_pod_ip"]))

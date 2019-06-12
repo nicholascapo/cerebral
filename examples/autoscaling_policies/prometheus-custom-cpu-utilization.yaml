@@ -6,8 +6,8 @@ metadata:
 spec:
   metric: custom
   metricConfiguration:
-    query: 100 - ( avg( irate(node_cpu{mode='idle',instance=~'{{.PodIPsRegex}}'}[1m]))
-      * 100)
+    query: 100 - ( avg( irate(node_cpu{mode='idle',instance=~'{{.PodIPsRegex}}'}[1m])) * 100)
+    jobName: node-exporter
   metricsBackend: prometheus
   pollInterval: 15
   samplePeriod: 300
@@ -20,5 +20,5 @@ spec:
     scaleUp:
       adjustmentType: absolute
       adjustmentValue: 2
-      comparisonOperator: '>='
+      comparisonOperator: ">="
       threshold: 70

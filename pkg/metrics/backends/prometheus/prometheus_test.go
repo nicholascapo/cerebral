@@ -112,7 +112,7 @@ var (
 	dlNode1 = model.LabelSet{
 		"__meta_kubernetes_pod_node_name": model.LabelValue(promPodOnNode1.Spec.NodeName),
 		"__meta_kubernetes_pod_ip":        model.LabelValue(promPodOnNode1.Status.PodIP),
-		"job":                             "random/node-export-monitor/random",
+		"job":                             "node-export-monitor",
 	}
 
 	dlOtherNode = model.LabelSet{
@@ -238,13 +238,13 @@ func TestGetNodeExporterPodIPsOnNodes(t *testing.T) {
 	}
 
 	// Empty cache but no nodes requested
-	ips, err := backend.getNodeExporterPodIPsOnNodes(nil)
+	ips, err := backend.getNodeExporterPodIPsOnNodes(nil, defaultNodeJobName)
 	assert.NoError(t, err)
 	assert.Empty(t, ips, "no nodes with empty pod cache --> no IPs")
 
 	nodes := []*corev1.Node{&promNode0, &promNode1}
 
-	ips, err = backend.getNodeExporterPodIPsOnNodes(nodes)
+	ips, err = backend.getNodeExporterPodIPsOnNodes(nodes, defaultNodeJobName)
 
 	assert.NoError(t, err)
 	assert.Len(t, ips, len(nodes), "proper number of pod IPs found")
@@ -252,13 +252,13 @@ func TestGetNodeExporterPodIPsOnNodes(t *testing.T) {
 	assert.Contains(t, ips, podIP1, "found expected pod IP 1")
 
 	// Cache still full with valid pods, querying for zero nodes
-	ips, err = backend.getNodeExporterPodIPsOnNodes(nil)
+	ips, err = backend.getNodeExporterPodIPsOnNodes(nil, defaultNodeJobName)
 	assert.NoError(t, err)
 	assert.Empty(t, ips, "no nodes with full pod cache --> no IPs")
 
 	// Add another node which is not running exporter
 	nodes = []*corev1.Node{&promNode0, &promNode1, &otherNode0}
-	ips, err = backend.getNodeExporterPodIPsOnNodes(nodes)
+	ips, err = backend.getNodeExporterPodIPsOnNodes(nodes, defaultNodeJobName)
 	assert.Error(t, err, "not every node running node exporter")
 }
 
